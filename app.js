@@ -2,7 +2,7 @@
 
 /* ---------- Dati e costanti ---------- */
 
-const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets' };
+const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements' };
 
 const DEFAULT_CATEGORIES = {
   expense: {
@@ -94,6 +94,8 @@ let state = {
   pendingDate: '',
   budgets: {},
   budgetMessage: '',
+  unlockedAchievements: [],
+  achievementMessage: '',
 };
 
 function loadState() {
@@ -109,6 +111,10 @@ function loadState() {
     const b = localStorage.getItem(STORAGE_KEYS.BUDGETS);
     if (b) state.budgets = JSON.parse(b);
   } catch (e) { /* nessun budget impostato */ }
+  try {
+    const ach = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
+    if (ach) state.unlockedAchievements = JSON.parse(ach);
+  } catch (e) { /* nessun traguardo salvato */ }
 }
 function saveTransactions() {
   try { localStorage.setItem(STORAGE_KEYS.TX, JSON.stringify(state.transactions)); }
@@ -121,6 +127,10 @@ function saveCategories() {
 function saveBudgets() {
   try { localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(state.budgets)); }
   catch (e) { console.error('Salvataggio budget non riuscito', e); }
+}
+function saveAchievements() {
+  try { localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(state.unlockedAchievements)); }
+  catch (e) { console.error('Salvataggio traguardi non riuscito', e); }
 }
 
 /* ---------- Helper ---------- */
@@ -264,6 +274,7 @@ function handleFormSubmit(e) {
   }
   saveTransactions();
   checkBudgetAfterSave(category, state.formType);
+  checkAchievements();
   state.pendingAmount = '';
   state.pendingDescription = '';
   state.pendingDate = '';
@@ -400,6 +411,8 @@ function setBudget(category, value) {
   const num = parseFloat(String(value).replace(',', '.'));
   if (!num || num <= 0) { delete state.budgets[category]; } else { state.budgets[category] = num; }
   saveBudgets();
+  checkAchievements();
+  renderApp();
 }
 
 const BUDGET_NEAR = [
@@ -427,6 +440,120 @@ function checkBudgetAfterSave(category, type) {
   } else {
     state.budgetMessage = '';
   }
+}
+
+/* ---------- Traguardi ---------- */
+
+const ACHIEVEMENTS = [
+  { id: 'first_tx', icon: '🌱', title: 'Ancora vivo', desc: 'Primo movimento registrato' },
+  { id: 'tx_10', icon: '📝', title: 'Non è più un caso', desc: '10 movimenti registrati' },
+  { id: 'tx_50', icon: '💯', title: "Ormai è un'abitudine", desc: '50 movimenti registrati' },
+  { id: 'tx_100', icon: '📚', title: 'Un\'enciclopedia di scontrini', desc: '100 movimenti registrati' },
+  { id: 'streak_7', icon: '🔥', title: 'Disciplina insolita', desc: 'Streak di 7 giorni' },
+  { id: 'streak_30', icon: '🔥', title: 'Un mese senza sgarrare', desc: 'Streak di 30 giorni' },
+  { id: 'first_budget', icon: '🎯', title: 'Un limite (a te stesso)', desc: 'Primo budget impostato' },
+  { id: 'perfect_month', icon: '🏆', title: 'Il mese perfetto', desc: 'Sotto budget ovunque per un mese intero' },
+];
+
+function computeBestStreak() {
+  const dates = [...new Set(state.transactions.map((t) => t.date))].sort();
+  if (dates.length === 0) return 0;
+  let best = 1;
+  let current = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const diffDays = Math.round((new Date(`${dates[i]}T00:00:00`) - new Date(`${dates[i - 1]}T00:00:00`)) / 86400000);
+    current = diffDays === 1 ? current + 1 : 1;
+    if (current > best) best = current;
+  }
+  return best;
+}
+
+function checkPerfectPreviousMonth() {
+  const budgetCats = Object.keys(state.budgets);
+  if (budgetCats.length === 0) return false;
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const totals = {};
+  let any = false;
+  state.transactions.filter((t) => t.type === 'expense').forEach((t) => {
+    const d = new Date(`${t.date}T00:00:00`);
+    if (d.getMonth() === target.getMonth() && d.getFullYear() === target.getFullYear()) {
+      totals[t.category] = (totals[t.category] || 0) + t.amount;
+      any = true;
+    }
+  });
+  if (!any) return false;
+  return budgetCats.every((cat) => (totals[cat] || 0) <= state.budgets[cat]);
+}
+
+function evaluateAchievements() {
+  const txCount = state.transactions.length;
+  const bestStreak = computeBestStreak();
+  return {
+    first_tx: txCount >= 1,
+    tx_10: txCount >= 10,
+    tx_50: txCount >= 50,
+    tx_100: txCount >= 100,
+    streak_7: bestStreak >= 7,
+    streak_30: bestStreak >= 30,
+    first_budget: Object.keys(state.budgets).length > 0,
+    perfect_month: checkPerfectPreviousMonth(),
+  };
+}
+
+function checkAchievements(silent) {
+  const checks = evaluateAchievements();
+  const newlyUnlocked = [];
+  ACHIEVEMENTS.forEach((a) => {
+    if (checks[a.id] && !state.unlockedAchievements.includes(a.id)) {
+      state.unlockedAchievements.push(a.id);
+      newlyUnlocked.push(a);
+    }
+  });
+  if (newlyUnlocked.length > 0) {
+    saveAchievements();
+    if (!silent) {
+      const a = newlyUnlocked[0];
+      state.achievementMessage = `Traguardo sbloccato: ${a.icon} ${a.title} — ${a.desc}.`;
+    }
+  }
+}
+
+/* ---------- Consigli educativi ---------- */
+
+const TIPS_BY_CATEGORY = {
+  Alimentari: [
+    'Fare la lista della spesa prima di uscire riduce gli acquisti d\u2019impulso al supermercato.',
+    'Le piccole spese quotidiane (caffè, spuntini) sommate in un mese sorprendono più di quelle grandi.',
+  ],
+  Svago: [
+    'Prima di un acquisto non necessario, aspetta 24 ore: se lo vuoi ancora il giorno dopo, probabilmente ne vale la pena.',
+    'Gli abbonamenti dimenticati sono uno dei modi più silenziosi in cui si perdono soldi ogni mese.',
+  ],
+  Casa: [
+    'Separare mentalmente i soldi per bollette e spese fisse dal resto aiuta a non toccarli per sbaglio.',
+  ],
+  Trasporti: [
+    'Confrontare i prezzi del carburante nelle vicinanze richiede un minuto e nel tempo fa risparmiare.',
+  ],
+};
+const TIPS_GENERAL = [
+  'La regola del 50/30/20: 50% per le necessità, 30% per i desideri, 20% da mettere da parte. Non è un dogma, è un punto di partenza.',
+  'Un fondo d\u2019emergenza di 3-6 mesi di spese toglie parecchia ansia quando arriva l\u2019imprevisto.',
+  'Se hai un debito con interessi alti, ripagarlo in fretta spesso rende più di qualsiasi investimento.',
+  'Segnare le spese per un mese intero, prima di cambiare abitudini, dà un quadro reale di dove va il denaro — e lo stai già facendo.',
+  'Confrontare i prezzi prima di un acquisto importante richiede 5 minuti e a volte fa risparmiare centinaia di euro.',
+  'Un obiettivo di risparmio con un nome e una scadenza ("vacanza a settembre, 500€") è più facile da rispettare di un generico "risparmiare di più".',
+  'Le spese una tantum (regali, riparazioni impreviste) fanno meno male se accantonate un po\u2019 alla volta ogni mese.',
+];
+
+function getDailyTip() {
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const totals = monthExpenseTotalsByCategory();
+  const top = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+  const pool = (top && TIPS_BY_CATEGORY[top[0]]) ? TIPS_BY_CATEGORY[top[0]].concat(TIPS_GENERAL) : TIPS_GENERAL;
+  return pool[dayOfYear % pool.length];
 }
 
 /* ---------- Grafico a torta SVG (senza librerie) ---------- */
@@ -576,8 +703,9 @@ function renderAggiungiTab() {
 
   return `
     <div class="stack max-w">
-      ${nudge ? `<div class="nudge nudge-${nudge.tone}">${esc(nudge.text)}</div>` : ''}
+      ${state.achievementMessage ? `<div class="nudge nudge-ok">${esc(state.achievementMessage)}</div>` : ''}
       ${state.budgetMessage ? `<div class="nudge nudge-warn">${esc(state.budgetMessage)}</div>` : ''}
+      ${nudge ? `<div class="nudge nudge-${nudge.tone}">${esc(nudge.text)}</div>` : ''}
       <div class="card center">
         <button type="button" id="mic-btn" class="mic-btn ${state.isListening ? 'listening' : ''}" ${state.isListening ? 'disabled' : ''}>
           ${ICONS.mic}
@@ -737,6 +865,21 @@ function renderRiepilogoTab() {
               </div>`).join('')}
           </div>`}
       </div>
+      <div class="card">
+        <div class="card-title">Consiglio del giorno</div>
+        <p class="hint" style="margin:0;">${esc(getDailyTip())}</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Traguardi</div>
+        <div class="badge-grid">
+          ${ACHIEVEMENTS.map((a) => `
+            <div class="badge ${state.unlockedAchievements.includes(a.id) ? 'unlocked' : 'locked'}">
+              <div class="badge-icon">${a.icon}</div>
+              <div class="badge-title">${esc(a.title)}</div>
+              <div class="badge-desc">${esc(a.desc)}</div>
+            </div>`).join('')}
+        </div>
+      </div>
     </div>
   `;
 }
@@ -865,6 +1008,7 @@ function attachGlobalHandlers() {
 function init() {
   loadState();
   loadBackupState();
+  checkAchievements(true);
   attachGlobalHandlers();
   renderApp();
   if ('serviceWorker' in navigator) {

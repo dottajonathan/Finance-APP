@@ -127,6 +127,8 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 
 - **Promemoria/streak**: ogni volta che si apre l'app (scheda Aggiungi), un banner in cima ricorda se manca ancora il movimento di oggi, con il conteggio dei giorni consecutivi. Non sono notifiche del telefono: richiederebbero un server esterno che questa app, volutamente, non ha.
 - **Budget per categoria**: nella scheda Categorie, sotto ogni categoria di spesa c'è un campo "Budget mensile". Impostandolo, nella scheda Riepilogo (periodo "Questo mese") compare una barra di avanzamento, e dopo aver salvato una spesa che si avvicina o supera il limite compare un messaggio contestuale.
+- **Traguardi**: scheda Riepilogo, in fondo. Si sbloccano registrando movimenti, mantenendo uno streak, o impostando budget — con un messaggio nel tono ironico-incoraggiante quando se ne sblocca uno nuovo.
+- **Consiglio del giorno**: scheda Riepilogo, cambia ogni giorno e tiene conto di quale categoria pesa di più nel mese in corso.
 
 ## Aggiornare l'app dopo una modifica
 

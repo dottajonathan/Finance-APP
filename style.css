@@ -190,6 +190,13 @@ button, input, select { font-size: 16px; }
 .progress-fill.near { background: var(--amber); }
 .progress-fill.over { background: var(--expense); }
 
+.badge-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.badge { border: 1px solid var(--border); border-radius: 14px; padding: 12px 10px; text-align: center; }
+.badge.locked { opacity: 0.4; filter: grayscale(1); }
+.badge-icon { font-size: 24px; line-height: 1; }
+.badge-title { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.badge-desc { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+
 .btn-stack { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 .btn-secondary { padding: 11px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; }
 .btn-secondary:hover { background: #f5f5f4; }
