@@ -2,7 +2,7 @@
 
 /* ---------- Dati e costanti ---------- */
 
-const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories' };
+const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets' };
 
 const DEFAULT_CATEGORIES = {
   expense: {
@@ -92,6 +92,8 @@ let state = {
   pendingAmount: '',
   pendingDescription: '',
   pendingDate: '',
+  budgets: {},
+  budgetMessage: '',
 };
 
 function loadState() {
@@ -103,6 +105,10 @@ function loadState() {
     const cat = localStorage.getItem(STORAGE_KEYS.CAT);
     if (cat) state.categories = JSON.parse(cat);
   } catch (e) { /* uso le categorie di default */ }
+  try {
+    const b = localStorage.getItem(STORAGE_KEYS.BUDGETS);
+    if (b) state.budgets = JSON.parse(b);
+  } catch (e) { /* nessun budget impostato */ }
 }
 function saveTransactions() {
   try { localStorage.setItem(STORAGE_KEYS.TX, JSON.stringify(state.transactions)); }
@@ -111,6 +117,10 @@ function saveTransactions() {
 function saveCategories() {
   try { localStorage.setItem(STORAGE_KEYS.CAT, JSON.stringify(state.categories)); }
   catch (e) { console.error('Salvataggio categorie non riuscito', e); }
+}
+function saveBudgets() {
+  try { localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(state.budgets)); }
+  catch (e) { console.error('Salvataggio budget non riuscito', e); }
 }
 
 /* ---------- Helper ---------- */
@@ -253,6 +263,7 @@ function handleFormSubmit(e) {
     state.transactions = [{ id: generateId(), type: state.formType, amount, category, subcategory, description, date }, ...state.transactions];
   }
   saveTransactions();
+  checkBudgetAfterSave(category, state.formType);
   state.pendingAmount = '';
   state.pendingDescription = '';
   state.pendingDate = '';
@@ -299,6 +310,7 @@ function addCategory(type) {
 function deleteCategory(type, cat) {
   delete state.categories[type][cat];
   saveCategories();
+  if (state.budgets[cat]) { delete state.budgets[cat]; saveBudgets(); }
   renderApp();
 }
 function confirmAddSubcategory() {
@@ -317,6 +329,104 @@ function deleteSubcategory(type, cat, sub) {
   state.categories[type][cat] = state.categories[type][cat].filter((s) => s !== sub);
   saveCategories();
   renderApp();
+}
+
+/* ---------- Streak, promemoria e budget ---------- */
+
+const NUDGE_NONE = [
+  'Streak di {n} giorni. Chi sei diventato.',
+  '{n} giorni di fila. Continua così, non rovinare tutto adesso.',
+];
+const NUDGE_TODAY_MISSING_ALIVE = [
+  'Ancora niente da segnare oggi? Il tuo streak di {gp} ti guarda con delusione.',
+  'Lo streak di {gp} è ancora vivo, ma solo se ti muovi oggi.',
+];
+const NUDGE_BROKEN = [
+  'Il vecchio streak è morto in silenzio. Iniziamone uno nuovo, oggi.',
+  'Streak azzerato. Il conto in banca invece continua, giorno e notte.',
+];
+const NUDGE_FIRST_TIME = [
+  'Ancora zero movimenti. Il portafoglio non si controlla da solo, dai.',
+  'Si comincia da qualche parte: prova con l\u2019ultima spesa che ricordi.',
+];
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function giorniPhrase(n) { return n === 1 ? '1 giorno' : `${n} giorni`; }
+
+function computeStreakInfo() {
+  const dates = new Set(state.transactions.map((t) => t.date));
+  if (dates.size === 0) return { hasAny: false, loggedToday: false, streak: 0, broken: false };
+
+  const today = todayStr();
+  const loggedToday = dates.has(today);
+
+  const cursor = new Date();
+  if (!loggedToday) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (dates.has(cursor.toISOString().split('T')[0])) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const broken = !loggedToday && !dates.has(yesterday.toISOString().split('T')[0]);
+
+  return { hasAny: true, loggedToday, streak, broken };
+}
+
+function getNudge() {
+  const info = computeStreakInfo();
+  if (!info.hasAny) return { text: pick(NUDGE_FIRST_TIME), tone: 'neutral' };
+  if (info.loggedToday) return info.streak > 1 ? { text: pick(NUDGE_NONE).replace('{n}', info.streak), tone: 'ok' } : null;
+  if (info.broken) return { text: pick(NUDGE_BROKEN), tone: 'warn' };
+  return { text: pick(NUDGE_TODAY_MISSING_ALIVE).replace('{gp}', giorniPhrase(info.streak)), tone: 'warn' };
+}
+
+function monthExpenseTotalsByCategory() {
+  const now = new Date();
+  const map = {};
+  state.transactions
+    .filter((t) => t.type === 'expense')
+    .filter((t) => {
+      const d = new Date(`${t.date}T00:00:00`);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .forEach((t) => { map[t.category] = (map[t.category] || 0) + t.amount; });
+  return map;
+}
+
+function setBudget(category, value) {
+  const num = parseFloat(String(value).replace(',', '.'));
+  if (!num || num <= 0) { delete state.budgets[category]; } else { state.budgets[category] = num; }
+  saveBudgets();
+}
+
+const BUDGET_NEAR = [
+  'Sei al {p}% del budget {cat} \u2014 mancano ancora {days} giorni al mese.',
+  '{p}% del budget {cat} gi\u00e0 andato. Il mese \u00e8 lungo, la pazienza pure si spera.',
+];
+const BUDGET_OVER = [
+  'Complimenti, hai sforato il budget {cat}. Il divertimento non si ferma, il portafoglio s\u00ec.',
+  'Budget {cat} superato. Lo hai fatto con stile, almeno.',
+];
+
+function checkBudgetAfterSave(category, type) {
+  if (type !== 'expense' || !state.budgets[category]) { state.budgetMessage = ''; return; }
+  const totals = monthExpenseTotalsByCategory();
+  const spent = totals[category] || 0;
+  const budget = state.budgets[category];
+  const pct = Math.round((spent / budget) * 100);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysLeft = daysInMonth - now.getDate();
+  if (pct >= 100) {
+    state.budgetMessage = pick(BUDGET_OVER).replace('{cat}', category);
+  } else if (pct >= 80) {
+    state.budgetMessage = pick(BUDGET_NEAR).replace('{p}', pct).replace('{cat}', category).replace('{days}', daysLeft);
+  } else {
+    state.budgetMessage = '';
+  }
 }
 
 /* ---------- Grafico a torta SVG (senza librerie) ---------- */
@@ -462,9 +572,12 @@ function renderAggiungiTab() {
   const amountVal = state.pendingAmount || '';
   const descVal = state.pendingDescription || '';
   const dateVal = state.pendingDate || todayStr();
+  const nudge = getNudge();
 
   return `
     <div class="stack max-w">
+      ${nudge ? `<div class="nudge nudge-${nudge.tone}">${esc(nudge.text)}</div>` : ''}
+      ${state.budgetMessage ? `<div class="nudge nudge-warn">${esc(state.budgetMessage)}</div>` : ''}
       <div class="card center">
         <button type="button" id="mic-btn" class="mic-btn ${state.isListening ? 'listening' : ''}" ${state.isListening ? 'disabled' : ''}>
           ${ICONS.mic}
@@ -590,6 +703,27 @@ function renderRiepilogoTab() {
           <div class="summary-amount mono">${formatCurrency(expense)}</div>
         </div>
       </div>
+      ${state.period === 'month' && Object.keys(state.budgets).length > 0 ? `
+        <div class="card">
+          <div class="card-title">Budget del mese</div>
+          <div class="stack-sm">
+            ${Object.entries(state.budgets).map(([cat, budget]) => {
+              const spent = map[cat] || 0;
+              const pct = Math.min(100, Math.round((spent / budget) * 100));
+              const over = spent > budget;
+              return `
+                <div>
+                  <div class="row-between" style="margin-bottom:4px;">
+                    <span style="font-size:13px;">${esc(cat)}</span>
+                    <span class="mono" style="font-size:13px;">${formatCurrency(spent)} / ${formatCurrency(budget)}</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill ${over ? 'over' : (pct >= 80 ? 'near' : 'ok')}" style="width:${pct}%;"></div>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
       <div class="card">
         <div class="card-title">Uscite per categoria</div>
         ${chartData.length === 0 ? '<p class="empty">Nessuna uscita nel periodo selezionato.</p>' : `
@@ -618,6 +752,11 @@ function renderCategorieTab() {
               <div class="cat-name">${categoryIcon(cat)}${esc(cat)}</div>
               <button type="button" data-action="delete-cat" data-type="${type}" data-cat="${esc(cat)}" aria-label="Elimina categoria">${ICONS.trash}</button>
             </div>
+            ${type === 'expense' ? `
+              <div class="budget-row">
+                <span class="hint" style="margin:0;">Budget mensile</span>
+                <input type="number" min="0" step="1" class="budget-input" data-cat="${esc(cat)}" placeholder="nessuno" value="${state.budgets[cat] || ''}">
+              </div>` : ''}
             <div class="chips">
               ${subs.map((s) => `
                 <span class="chip">${esc(s)}<button type="button" data-action="delete-sub" data-type="${type}" data-cat="${esc(cat)}" data-sub="${esc(s)}" aria-label="Rimuovi">${ICONS.x}</button></span>`).join('')}
@@ -696,6 +835,7 @@ function attachGlobalHandlers() {
     else if (e.target.id === 'filter-type') { state.filterType = e.target.value; state.filterCategory = 'all'; renderApp(); }
     else if (e.target.id === 'filter-category') { state.filterCategory = e.target.value; renderApp(); }
     else if (e.target.id === 'import-file-input') { handleImportFile(e); }
+    else if (e.target.classList.contains('budget-input')) { setBudget(e.target.dataset.cat, e.target.value); }
   });
 
   main.addEventListener('submit', (e) => {

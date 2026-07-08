@@ -175,6 +175,21 @@ button, input, select { font-size: 16px; }
 .nav-btn.active { color: var(--income); }
 .nav-btn:focus-visible { outline: 2px solid var(--income); outline-offset: -2px; }
 
+.nudge { border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.4; }
+.nudge-ok { background: var(--income-bg); color: var(--income); }
+.nudge-warn { background: #fffbeb; color: #b45309; }
+.nudge-neutral { background: var(--expense-bg); color: var(--expense); }
+
+.budget-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.budget-input { width: 90px; padding: 6px 8px; border-radius: 10px; border: 1px solid var(--border); font-size: 13px; text-align: right; }
+.budget-input:focus { outline: none; box-shadow: 0 0 0 2px var(--income); }
+
+.progress-track { height: 8px; border-radius: 999px; background: #f0efed; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.2s; }
+.progress-fill.ok { background: var(--income); }
+.progress-fill.near { background: var(--amber); }
+.progress-fill.over { background: var(--expense); }
+
 .btn-stack { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
 .btn-secondary { padding: 11px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; }
 .btn-secondary:hover { background: #f5f5f4; }

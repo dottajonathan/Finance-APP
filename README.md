@@ -122,3 +122,12 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 - Rimossi `config.js`, `drive.js` e lo script di Google Identity Services: nessuna configurazione su Google Cloud Console richiesta
 - La scheda **Backup** ora esporta/importa un file locale invece di collegarsi a Drive
 - Tutto il resto (voce, categorie, dashboard) è invariato
+
+## Novità: promemoria, streak e budget
+
+- **Promemoria/streak**: ogni volta che si apre l'app (scheda Aggiungi), un banner in cima ricorda se manca ancora il movimento di oggi, con il conteggio dei giorni consecutivi. Non sono notifiche del telefono: richiederebbero un server esterno che questa app, volutamente, non ha.
+- **Budget per categoria**: nella scheda Categorie, sotto ogni categoria di spesa c'è un campo "Budget mensile". Impostandolo, nella scheda Riepilogo (periodo "Questo mese") compare una barra di avanzamento, e dopo aver salvato una spesa che si avvicina o supera il limite compare un messaggio contestuale.
+
+## Aggiornare l'app dopo una modifica
+
+Per modifiche solo al codice (non all'icona o al nome dell'app), **non serve rifare la procedura Bubblewrap**: basta ripubblicare questa cartella aggiornata sullo stesso hosting (stesso link di prima). L'app già installata sul telefono carica il sito dal vivo e si aggiorna da sola al successivo avvio (grazie al service worker, che rileva la nuova versione).
