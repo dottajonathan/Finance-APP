@@ -2,7 +2,7 @@
 
 /* ---------- Dati e costanti ---------- */
 
-const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements' };
+const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements', STYLES: 'finanze_category_styles', THEME: 'finanze_theme' };
 
 const DEFAULT_CATEGORIES = {
   expense: {
@@ -59,6 +59,9 @@ const ICONS = {
   arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
   arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>',
   category: {
     'Alimentari': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>',
     'Casa': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg>',
@@ -70,7 +73,35 @@ const ICONS = {
     'Altro': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
   },
 };
-function categoryIcon(name) { return ICONS.category[name] || ICONS.category['Altro']; }
+
+const ICON_PALETTE = {
+  cart: ICONS.category['Alimentari'],
+  home: ICONS.category['Casa'],
+  car: ICONS.category['Trasporti'],
+  heart: ICONS.category['Salute'],
+  film: ICONS.category['Svago'],
+  briefcase: ICONS.category['Lavoro'],
+  trending: ICONS.category['Investimenti'],
+  box: ICONS.category['Altro'],
+  gift: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="11" rx="1"/><path d="M3 9h18M12 9v11"/><path d="M12 9C12 6.5 10 4.5 8 4.5S5 6 7 9M12 9c0-2.5 2-4.5 4-4.5s3 1.5 1 4.5"/></svg>',
+  book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg>',
+  coffee: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h13v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M7 2c0 1-1 1-1 2s1 1 1 2M11 2c0 1-1 1-1 2s1 1 1 2"/></svg>',
+  plane: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>',
+  phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>',
+  dumbbell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7v10M18 7v10M2 10v4M22 10v4M6 12h12"/></svg>',
+  paw: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="15" r="4"/><circle cx="6" cy="9" r="2"/><circle cx="18" cy="9" r="2"/><circle cx="9" cy="5" r="2"/><circle cx="15" cy="5" r="2"/></svg>',
+  tool: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 1 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.8 2.8-2-2z"/></svg>',
+};
+
+function categoryIcon(type, name) {
+  const custom = state.categoryStyles[`${type}:${name}`];
+  if (custom && custom.icon && ICON_PALETTE[custom.icon]) return ICON_PALETTE[custom.icon];
+  return ICONS.category[name] || ICONS.category['Altro'];
+}
+function categoryColor(type, name) {
+  const custom = state.categoryStyles[`${type}:${name}`];
+  return (custom && custom.color) || null;
+}
 
 /* ---------- Stato ---------- */
 
@@ -96,6 +127,10 @@ let state = {
   budgetMessage: '',
   unlockedAchievements: [],
   achievementMessage: '',
+  categoryStyles: {},
+  styleEditingFor: null,
+  searchQuery: '',
+  theme: 'light',
 };
 
 function loadState() {
@@ -115,6 +150,15 @@ function loadState() {
     const ach = localStorage.getItem(STORAGE_KEYS.ACHIEVEMENTS);
     if (ach) state.unlockedAchievements = JSON.parse(ach);
   } catch (e) { /* nessun traguardo salvato */ }
+  try {
+    const st = localStorage.getItem(STORAGE_KEYS.STYLES);
+    if (st) state.categoryStyles = JSON.parse(st);
+  } catch (e) { /* nessuno stile personalizzato */ }
+  try {
+    const theme = localStorage.getItem(STORAGE_KEYS.THEME);
+    state.theme = theme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (e) { state.theme = 'light'; }
+  applyTheme();
 }
 function saveTransactions() {
   try { localStorage.setItem(STORAGE_KEYS.TX, JSON.stringify(state.transactions)); }
@@ -131,6 +175,23 @@ function saveBudgets() {
 function saveAchievements() {
   try { localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(state.unlockedAchievements)); }
   catch (e) { console.error('Salvataggio traguardi non riuscito', e); }
+}
+function saveCategoryStyles() {
+  try { localStorage.setItem(STORAGE_KEYS.STYLES, JSON.stringify(state.categoryStyles)); }
+  catch (e) { console.error('Salvataggio stili non riuscito', e); }
+}
+function applyTheme() {
+  document.documentElement.setAttribute('data-theme', state.theme);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', state.theme === 'dark' ? '#18181b' : '#047857');
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.innerHTML = state.theme === 'dark' ? ICONS.sun : ICONS.moon;
+}
+function toggleTheme() {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  try { localStorage.setItem(STORAGE_KEYS.THEME, state.theme); } catch (e) { /* non bloccante */ }
+  applyTheme();
+  renderApp();
 }
 
 /* ---------- Helper ---------- */
@@ -322,6 +383,9 @@ function deleteCategory(type, cat) {
   delete state.categories[type][cat];
   saveCategories();
   if (state.budgets[cat]) { delete state.budgets[cat]; saveBudgets(); }
+  const styleKey = `${type}:${cat}`;
+  if (state.categoryStyles[styleKey]) { delete state.categoryStyles[styleKey]; saveCategoryStyles(); }
+  if (state.styleEditingFor && state.styleEditingFor.type === type && state.styleEditingFor.cat === cat) state.styleEditingFor = null;
   renderApp();
 }
 function confirmAddSubcategory() {
@@ -578,7 +642,8 @@ function buildPieSVG(data) {
     const sweep = (d.value / total) * 360;
     const path = donutSlicePath(100, 100, 85, 52, angle, angle + Math.max(sweep, 0.01));
     angle += sweep;
-    return `<path d="${path}" fill="${CHART_COLORS[i % CHART_COLORS.length]}"><title>${esc(d.name)}: ${formatCurrency(d.value)}</title></path>`;
+    const color = categoryColor('expense', d.name) || CHART_COLORS[i % CHART_COLORS.length];
+    return `<path d="${path}" fill="${color}"><title>${esc(d.name)}: ${formatCurrency(d.value)}</title></path>`;
   }).join('');
   return `<svg viewBox="0 0 200 200" class="pie">${slices}</svg>`;
 }
@@ -707,10 +772,7 @@ function renderAggiungiTab() {
       ${state.budgetMessage ? `<div class="nudge nudge-warn">${esc(state.budgetMessage)}</div>` : ''}
       ${nudge ? `<div class="nudge nudge-${nudge.tone}">${esc(nudge.text)}</div>` : ''}
       <div class="card center">
-        <button type="button" id="mic-btn" class="mic-btn ${state.isListening ? 'listening' : ''}" ${state.isListening ? 'disabled' : ''}>
-          ${ICONS.mic}
-        </button>
-        <p class="hint">${state.isListening ? 'Ti ascolto...' : 'Tocca e di\u2019 ad esempio &quot;spesa di 25 euro al supermercato&quot;'}</p>
+        <p class="hint" style="margin-top:0;">${state.isListening ? 'Ti ascolto...' : 'Tocca il microfono qui sotto e di\u2019 ad esempio &quot;spesa di 25 euro al supermercato&quot;'}</p>
         ${state.voiceMessage ? `<p class="voice-msg ok">${esc(state.voiceMessage)}</p>` : ''}
         ${state.voiceError ? `<p class="voice-msg err">${ICONS.alert}${esc(state.voiceError)}</p>` : ''}
       </div>
@@ -758,19 +820,61 @@ function renderAggiungiTab() {
 
         <button type="submit" class="btn-primary">${isEditing ? 'Salva modifiche' : 'Aggiungi movimento'}</button>
       </form>
+      <div class="fab-spacer"></div>
+    </div>
+    <div class="mic-fab-wrap">
+      <button type="button" id="mic-btn" class="mic-btn ${state.isListening ? 'listening' : ''}" ${state.isListening ? 'disabled' : ''} aria-label="Registra movimento vocale">
+        ${ICONS.mic}
+      </button>
     </div>
   `;
 }
 
-function renderTransazioniTab() {
-  const list = state.transactions
+function getFilteredTransactions() {
+  const searchEl = document.getElementById('search-input');
+  const query = searchEl ? searchEl.value.trim().toLowerCase() : state.searchQuery.trim().toLowerCase();
+  return state.transactions
     .filter((t) => state.filterType === 'all' || t.type === state.filterType)
     .filter((t) => state.filterCategory === 'all' || t.category === state.filterCategory)
+    .filter((t) => !query || `${t.description} ${t.category} ${t.subcategory}`.toLowerCase().includes(query))
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function renderTxRowsHTML(list) {
+  if (list.length === 0) return '<p class="empty">Nessun movimento trovato.</p>';
+  return `<div class="tx-list">${list.map((t) => {
+    const custom = categoryColor(t.type, t.category);
+    const iconStyle = custom ? ` style="background:${custom}26;color:${custom};"` : '';
+    return `
+          <div class="tx-row ${t.type === 'income' ? 'border-income' : 'border-expense'}">
+            <div class="tx-icon ${custom ? '' : (t.type === 'income' ? 'bg-income' : 'bg-expense')}"${iconStyle}>${categoryIcon(t.type, t.category)}</div>
+            <div class="tx-info">
+              <div class="tx-desc">${esc(t.description || t.subcategory)}</div>
+              <div class="tx-meta">${esc(t.category)} · ${esc(t.subcategory)} · ${formatDateShort(t.date)}</div>
+            </div>
+            <div class="tx-amount mono ${t.type === 'income' ? 'text-income' : 'text-expense'}">${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}</div>
+            <div class="tx-actions">
+              <button type="button" data-action="edit-tx" data-id="${t.id}" aria-label="Modifica">${ICONS.pencil}</button>
+              <button type="button" data-action="delete-tx" data-id="${t.id}" aria-label="Elimina">${ICONS.trash}</button>
+            </div>
+          </div>`;
+  }).join('')}</div>`;
+}
+
+function refreshTxList() {
+  const container = document.getElementById('tx-list-container');
+  if (container) container.innerHTML = renderTxRowsHTML(getFilteredTransactions());
+}
+
+function renderTransazioniTab() {
   const catOptions = state.filterType !== 'all' ? catKeys(state.filterType) : [];
 
   return `
     <div class="stack max-w">
+      <div class="search-box">
+        ${ICONS.search}
+        <input type="text" id="search-input" placeholder="Cerca per descrizione o categoria..." value="${esc(state.searchQuery)}">
+      </div>
       <div class="filters">
         <select id="filter-type">
           <option value="all" ${state.filterType === 'all' ? 'selected' : ''}>Tutti i movimenti</option>
@@ -783,22 +887,7 @@ function renderTransazioniTab() {
             ${catOptions.map((c) => `<option value="${esc(c)}" ${c === state.filterCategory ? 'selected' : ''}>${esc(c)}</option>`).join('')}
           </select>` : ''}
       </div>
-      ${list.length === 0 ? '<p class="empty">Nessun movimento trovato.</p>' : ''}
-      <div class="tx-list">
-        ${list.map((t) => `
-          <div class="tx-row ${t.type === 'income' ? 'border-income' : 'border-expense'}">
-            <div class="tx-icon ${t.type === 'income' ? 'bg-income' : 'bg-expense'}">${categoryIcon(t.category)}</div>
-            <div class="tx-info">
-              <div class="tx-desc">${esc(t.description || t.subcategory)}</div>
-              <div class="tx-meta">${esc(t.category)} · ${esc(t.subcategory)} · ${formatDateShort(t.date)}</div>
-            </div>
-            <div class="tx-amount mono ${t.type === 'income' ? 'text-income' : 'text-expense'}">${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}</div>
-            <div class="tx-actions">
-              <button type="button" data-action="edit-tx" data-id="${t.id}" aria-label="Modifica">${ICONS.pencil}</button>
-              <button type="button" data-action="delete-tx" data-id="${t.id}" aria-label="Elimina">${ICONS.trash}</button>
-            </div>
-          </div>`).join('')}
-      </div>
+      <div id="tx-list-container">${renderTxRowsHTML(getFilteredTransactions())}</div>
     </div>
   `;
 }
@@ -859,7 +948,7 @@ function renderRiepilogoTab() {
           <div class="legend">
             ${chartData.map((d, i) => `
               <div class="legend-row">
-                <span class="legend-dot" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>
+                <span class="legend-dot" style="background:${categoryColor('expense', d.name) || CHART_COLORS[i % CHART_COLORS.length]}"></span>
                 <span class="legend-name">${esc(d.name)}</span>
                 <span class="legend-value mono">${formatCurrency(d.value)}</span>
               </div>`).join('')}
@@ -889,12 +978,29 @@ function renderCategorieTab() {
     <div>
       <h2 class="section-title">${type === 'expense' ? 'Categorie di uscita' : 'Categorie di entrata'}</h2>
       <div class="stack-sm">
-        ${Object.entries(state.categories[type] || {}).map(([cat, subs]) => `
+        ${Object.entries(state.categories[type] || {}).map(([cat, subs]) => {
+          const customColor = categoryColor(type, cat);
+          const isEditingStyle = state.styleEditingFor && state.styleEditingFor.type === type && state.styleEditingFor.cat === cat;
+          return `
           <div class="cat-card">
             <div class="row-between">
-              <div class="cat-name">${categoryIcon(cat)}${esc(cat)}</div>
+              <button type="button" class="cat-name cat-name-btn" data-action="toggle-style" data-type="${type}" data-cat="${esc(cat)}"${customColor ? ` style="color:${customColor};"` : ''}>
+                ${categoryIcon(type, cat)}${esc(cat)}
+              </button>
               <button type="button" data-action="delete-cat" data-type="${type}" data-cat="${esc(cat)}" aria-label="Elimina categoria">${ICONS.trash}</button>
             </div>
+            ${isEditingStyle ? `
+              <div class="style-editor">
+                <div class="icon-grid">
+                  ${Object.entries(ICON_PALETTE).map(([key, svg]) => `
+                    <button type="button" class="icon-swatch ${state.categoryStyles[`${type}:${cat}`] && state.categoryStyles[`${type}:${cat}`].icon === key ? 'selected' : ''}" data-action="pick-icon" data-type="${type}" data-cat="${esc(cat)}" data-icon="${key}">${svg}</button>`).join('')}
+                </div>
+                <div class="color-row">
+                  <label class="hint" style="margin:0;">Colore</label>
+                  <input type="color" class="color-input" data-type="${type}" data-cat="${esc(cat)}" value="${customColor || '#78716c'}">
+                  <button type="button" class="link-btn" data-action="close-style">${ICONS.check} Fatto</button>
+                </div>
+              </div>` : ''}
             ${type === 'expense' ? `
               <div class="budget-row">
                 <span class="hint" style="margin:0;">Budget mensile</span>
@@ -910,7 +1016,8 @@ function renderCategorieTab() {
                 </span>` : `
                 <button type="button" class="chip-add" data-action="open-sub-input" data-type="${type}" data-cat="${esc(cat)}">+ sottocategoria</button>`}
             </div>
-          </div>`).join('')}
+          </div>`;
+        }).join('')}
       </div>
       <div class="add-cat-row">
         <input type="text" id="new-cat-input-${type}" placeholder="Nuova categoria...">
@@ -968,6 +1075,26 @@ function attachGlobalHandlers() {
     const addCatBtn = e.target.closest('[data-action="add-cat"]');
     if (addCatBtn) { addCategory(addCatBtn.dataset.type); return; }
 
+    const toggleStyle = e.target.closest('[data-action="toggle-style"]');
+    if (toggleStyle) {
+      const { type, cat } = toggleStyle.dataset;
+      const isSame = state.styleEditingFor && state.styleEditingFor.type === type && state.styleEditingFor.cat === cat;
+      state.styleEditingFor = isSame ? null : { type, cat };
+      renderApp();
+      return;
+    }
+    if (e.target.closest('[data-action="close-style"]')) { state.styleEditingFor = null; renderApp(); return; }
+
+    const pickIcon = e.target.closest('[data-action="pick-icon"]');
+    if (pickIcon) {
+      const { cat, icon, type } = pickIcon.dataset;
+      const key = `${type}:${cat}`;
+      state.categoryStyles[key] = { ...(state.categoryStyles[key] || {}), icon };
+      saveCategoryStyles();
+      renderApp();
+      return;
+    }
+
     if (e.target.closest('[data-action="export-backup"]')) { exportBackup(); return; }
     if (e.target.closest('[data-action="trigger-import"]')) { triggerImport(); return; }
   });
@@ -979,6 +1106,13 @@ function attachGlobalHandlers() {
     else if (e.target.id === 'filter-category') { state.filterCategory = e.target.value; renderApp(); }
     else if (e.target.id === 'import-file-input') { handleImportFile(e); }
     else if (e.target.classList.contains('budget-input')) { setBudget(e.target.dataset.cat, e.target.value); }
+    else if (e.target.classList.contains('color-input')) {
+      const { cat, type } = e.target.dataset;
+      const key = `${type}:${cat}`;
+      state.categoryStyles[key] = { ...(state.categoryStyles[key] || {}), color: e.target.value };
+      saveCategoryStyles();
+      renderApp();
+    }
   });
 
   main.addEventListener('submit', (e) => {
@@ -994,6 +1128,10 @@ function attachGlobalHandlers() {
     }
   });
 
+  main.addEventListener('input', (e) => {
+    if (e.target.id === 'search-input') refreshTxList();
+  });
+
   document.querySelectorAll('.nav-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       syncFormInputsToState();
@@ -1001,6 +1139,9 @@ function attachGlobalHandlers() {
       renderApp();
     });
   });
+
+  const themeBtn = document.getElementById('theme-toggle-btn');
+  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
 }
 
 /* ---------- Avvio ---------- */

@@ -123,6 +123,12 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 - La scheda **Backup** ora esporta/importa un file locale invece di collegarsi a Drive
 - Tutto il resto (voce, categorie, dashboard) è invariato
 
+## Novità: tema scuro, ricerca, categorie personalizzate
+
+- **Tema scuro**: pulsante sole/luna nell'header, in alto a destra. Ricorda la scelta; se non ne fai una, segue l'impostazione del telefono.
+- **Ricerca**: scheda Movimenti, casella in cima — filtra per descrizione, categoria o sottocategoria mentre scrivi.
+- **Categorie personalizzate**: nella scheda Categorie, toccando il nome di una categoria si apre un selettore di icona (16 a scelta) e colore. Il colore scelto si riflette anche nella lista movimenti e nel grafico a torta.
+
 ## Novità: promemoria, streak e budget
 
 - **Promemoria/streak**: ogni volta che si apre l'app (scheda Aggiungi), un banner in cima ricorda se manca ancora il movimento di oggi, con il conteggio dei giorni consecutivi. Non sono notifiche del telefono: richiederebbero un server esterno che questa app, volutamente, non ha.
