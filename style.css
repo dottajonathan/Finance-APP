@@ -100,6 +100,7 @@ button, input, select { font-size: 16px; }
 .mic-btn:disabled { cursor: default; }
 .mic-btn.listening { background: var(--expense-bg); color: var(--expense); animation: pulse 1.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .mic-btn.listening { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .progress-fill { transition: none; } .tx-row, .onboarding-card { animation: none; } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 .mic-fab-wrap {
@@ -157,9 +158,15 @@ button, input, select { font-size: 16px; }
 .filters select { flex: 1; padding: 9px 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); font-size: 14px; }
 
 .empty { text-align: center; color: var(--text-faint); font-size: 14px; padding: 40px 0; }
+.empty-rich { text-align: center; padding: 50px 20px; }
+.empty-icon { width: 56px; height: 56px; border-radius: 50%; background: var(--income-bg); color: var(--income); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+.empty-icon svg { width: 24px; height: 24px; }
+.empty-title { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+.empty-text { font-size: 13px; color: var(--text-faint); margin: 0 auto; max-width: 240px; }
 
 .tx-list { display: flex; flex-direction: column; gap: 8px; }
-.tx-row { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; }
+.tx-row { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px; animation: rowIn 0.3s ease both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 .tx-row.border-income { border-left-color: var(--income); }
 .tx-row.border-expense { border-left-color: var(--expense); }
 .tx-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -250,7 +257,7 @@ button, input, select { font-size: 16px; }
 .budget-input:focus { outline: none; box-shadow: 0 0 0 2px var(--income); }
 
 .progress-track { height: 8px; border-radius: 999px; background: var(--surface-muted); overflow: hidden; }
-.progress-fill { height: 100%; border-radius: 999px; transition: width 0.2s; }
+.progress-fill { height: 100%; border-radius: 999px; transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
 .progress-fill.ok { background: var(--income); }
 .progress-fill.near { background: var(--amber); }
 .progress-fill.over { background: var(--expense); }
@@ -267,3 +274,23 @@ button, input, select { font-size: 16px; }
 .btn-secondary:hover { background: var(--surface-muted); }
 .link-centered { justify-content: center; width: 100%; margin-top: 2px; }
 code { background: var(--surface-muted); padding: 2px 5px; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+
+.onboarding-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--bg);
+  align-items: center; justify-content: center;
+  padding: 28px;
+}
+.onboarding-overlay.show { display: flex; }
+.onboarding-card { max-width: 340px; width: 100%; text-align: center; position: relative; animation: rowIn 0.35s ease both; }
+.onboarding-skip { position: absolute; top: -14px; right: 0; background: none; border: none; color: var(--text-faint); font-size: 13px; cursor: pointer; padding: 10px; }
+.onboarding-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--income-bg); color: var(--income); display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; }
+.onboarding-icon svg { width: 30px; height: 30px; }
+.onboarding-title { font-size: 21px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.01em; }
+.onboarding-text { font-size: 14px; color: var(--text-muted); line-height: 1.55; margin: 0 0 30px; }
+.onboarding-dots { display: flex; justify-content: center; align-items: center; gap: 6px; margin-bottom: 26px; }
+.onboarding-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); transition: all 0.2s; }
+.onboarding-dots .dot.active { background: var(--income); width: 18px; border-radius: 3px; }
+.onboarding-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.onboarding-actions .btn-primary, .onboarding-actions .btn-secondary { width: auto; padding: 11px 26px; }

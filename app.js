@@ -2,7 +2,7 @@
 
 /* ---------- Dati e costanti ---------- */
 
-const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements', STYLES: 'finanze_category_styles', THEME: 'finanze_theme' };
+const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements', STYLES: 'finanze_category_styles', THEME: 'finanze_theme', ONBOARDED: 'finanze_onboarded' };
 
 const DEFAULT_CATEGORIES = {
   expense: {
@@ -131,6 +131,8 @@ let state = {
   styleEditingFor: null,
   searchQuery: '',
   theme: 'light',
+  showOnboarding: false,
+  onboardingStep: 0,
 };
 
 function loadState() {
@@ -155,10 +157,19 @@ function loadState() {
     if (st) state.categoryStyles = JSON.parse(st);
   } catch (e) { /* nessuno stile personalizzato */ }
   try {
-    const theme = localStorage.getItem(STORAGE_KEYS.THEME);
-    state.theme = theme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    state.theme = localStorage.getItem(STORAGE_KEYS.THEME) || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   } catch (e) { state.theme = 'light'; }
   applyTheme();
+  try {
+    const alreadyOnboarded = !!localStorage.getItem(STORAGE_KEYS.ONBOARDED);
+    if (!alreadyOnboarded && state.transactions.length > 0) {
+      // Utente già esistente (ha dati da prima di questo aggiornamento): non è nuovo, salta l'onboarding senza mostrarlo.
+      localStorage.setItem(STORAGE_KEYS.ONBOARDED, '1');
+      state.showOnboarding = false;
+    } else {
+      state.showOnboarding = !alreadyOnboarded;
+    }
+  } catch (e) { state.showOnboarding = false; }
 }
 function saveTransactions() {
   try { localStorage.setItem(STORAGE_KEYS.TX, JSON.stringify(state.transactions)); }
@@ -740,6 +751,67 @@ function renderBackupTab() {
   `;
 }
 
+/* ---------- Onboarding ---------- */
+
+const ONBOARDING_SLIDES = [
+  {
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H5a2 2 0 0 1-2-2z"/><circle cx="16" cy="14" r="1.5"/></svg>',
+    title: 'Benvenuto in Le Mie Finanze',
+    text: 'Un posto per segnare quello che spendi e guadagni, senza fronzoli. Bastano pochi secondi al giorno.',
+  },
+  {
+    icon: ICONS.mic,
+    title: 'Parla, non digitare',
+    text: 'Tocca il microfono e di\u2019 una frase tipo "spesa di 15 euro al bar": pensa l\u2019app a capire importo e categoria. Controlli sempre tutto prima di salvare.',
+  },
+  {
+    icon: ICON_PALETTE.trending,
+    title: 'Categorie e budget',
+    text: 'Ogni spesa ha una categoria, personalizzabile con icona e colore. Dalla scheda Categorie puoi anche impostare un budget mensile per tenerle sotto controllo.',
+  },
+];
+
+function renderOnboardingSlide() {
+  const step = state.onboardingStep;
+  const slide = ONBOARDING_SLIDES[step];
+  const isLast = step === ONBOARDING_SLIDES.length - 1;
+  return `
+    <div class="onboarding-card">
+      <button type="button" class="onboarding-skip" data-action="onboarding-skip">Salta</button>
+      <div class="onboarding-icon">${slide.icon}</div>
+      <h2 class="onboarding-title">${esc(slide.title)}</h2>
+      <p class="onboarding-text">${esc(slide.text)}</p>
+      <div class="onboarding-dots">
+        ${ONBOARDING_SLIDES.map((_, i) => `<span class="dot ${i === step ? 'active' : ''}"></span>`).join('')}
+      </div>
+      <div class="onboarding-actions">
+        ${step > 0 ? `<button type="button" class="btn-secondary" data-action="onboarding-back">Indietro</button>` : '<span></span>'}
+        <button type="button" class="btn-primary" data-action="${isLast ? 'onboarding-finish' : 'onboarding-next'}">${isLast ? 'Inizia' : 'Avanti'}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderOnboardingOverlay() {
+  const overlay = document.getElementById('onboarding-overlay');
+  if (!overlay) return;
+  overlay.classList.toggle('show', state.showOnboarding);
+  if (state.showOnboarding) overlay.innerHTML = renderOnboardingSlide();
+}
+
+function onboardingNext() {
+  if (state.onboardingStep < ONBOARDING_SLIDES.length - 1) { state.onboardingStep += 1; renderOnboardingOverlay(); }
+  else finishOnboarding();
+}
+function onboardingBack() {
+  if (state.onboardingStep > 0) { state.onboardingStep -= 1; renderOnboardingOverlay(); }
+}
+function finishOnboarding() {
+  state.showOnboarding = false;
+  try { localStorage.setItem(STORAGE_KEYS.ONBOARDED, '1'); } catch (e) { /* non bloccante */ }
+  renderOnboardingOverlay();
+}
+
 /* ---------- Rendering ---------- */
 
 function updateBalanceHeader() {
@@ -841,12 +913,23 @@ function getFilteredTransactions() {
 }
 
 function renderTxRowsHTML(list) {
-  if (list.length === 0) return '<p class="empty">Nessun movimento trovato.</p>';
-  return `<div class="tx-list">${list.map((t) => {
+  if (list.length === 0) {
+    if (state.transactions.length === 0) {
+      return `
+        <div class="empty-rich">
+          <div class="empty-icon">${ICONS.mic}</div>
+          <p class="empty-title">Non hai ancora segnato nulla</p>
+          <p class="empty-text">Tocca il microfono nella scheda Aggiungi, oppure inserisci il primo movimento a mano.</p>
+        </div>`;
+    }
+    return '<p class="empty">Nessun movimento trovato con questi filtri.</p>';
+  }
+  return `<div class="tx-list">${list.map((t, i) => {
     const custom = categoryColor(t.type, t.category);
     const iconStyle = custom ? ` style="background:${custom}26;color:${custom};"` : '';
+    const delay = Math.min(i * 30, 240);
     return `
-          <div class="tx-row ${t.type === 'income' ? 'border-income' : 'border-expense'}">
+          <div class="tx-row ${t.type === 'income' ? 'border-income' : 'border-expense'}" style="animation-delay:${delay}ms;">
             <div class="tx-icon ${custom ? '' : (t.type === 'income' ? 'bg-income' : 'bg-expense')}"${iconStyle}>${categoryIcon(t.type, t.category)}</div>
             <div class="tx-info">
               <div class="tx-desc">${esc(t.description || t.subcategory)}</div>
@@ -935,7 +1018,7 @@ function renderRiepilogoTab() {
                     <span class="mono" style="font-size:13px;">${formatCurrency(spent)} / ${formatCurrency(budget)}</span>
                   </div>
                   <div class="progress-track">
-                    <div class="progress-fill ${over ? 'over' : (pct >= 80 ? 'near' : 'ok')}" style="width:${pct}%;"></div>
+                    <div class="progress-fill ${over ? 'over' : (pct >= 80 ? 'near' : 'ok')}" style="width:0%;" data-target-width="${pct}"></div>
                   </div>
                 </div>`;
             }).join('')}
@@ -1028,13 +1111,23 @@ function renderCategorieTab() {
   return `<div class="stack max-w">${section('expense')}${section('income')}</div>`;
 }
 
+function animateProgressBars() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.progress-fill[data-target-width]').forEach((el) => {
+        el.style.width = `${el.dataset.targetWidth}%`;
+      });
+    });
+  });
+}
+
 function renderApp() {
   updateBalanceHeader();
   setActiveNav();
   const main = document.getElementById('main-content');
   if (state.tab === 'aggiungi') main.innerHTML = renderAggiungiTab();
   else if (state.tab === 'transazioni') main.innerHTML = renderTransazioniTab();
-  else if (state.tab === 'riepilogo') main.innerHTML = renderRiepilogoTab();
+  else if (state.tab === 'riepilogo') { main.innerHTML = renderRiepilogoTab(); animateProgressBars(); }
   else if (state.tab === 'categorie') main.innerHTML = renderCategorieTab();
   else if (state.tab === 'backup') main.innerHTML = renderBackupTab();
 }
@@ -1142,6 +1235,16 @@ function attachGlobalHandlers() {
 
   const themeBtn = document.getElementById('theme-toggle-btn');
   if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+
+  const onboardingOverlay = document.getElementById('onboarding-overlay');
+  if (onboardingOverlay) {
+    onboardingOverlay.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="onboarding-skip"]')) finishOnboarding();
+      else if (e.target.closest('[data-action="onboarding-next"]')) onboardingNext();
+      else if (e.target.closest('[data-action="onboarding-back"]')) onboardingBack();
+      else if (e.target.closest('[data-action="onboarding-finish"]')) finishOnboarding();
+    });
+  }
 }
 
 /* ---------- Avvio ---------- */
@@ -1152,6 +1255,7 @@ function init() {
   checkAchievements(true);
   attachGlobalHandlers();
   renderApp();
+  renderOnboardingOverlay();
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch((err) => console.error('Registrazione service worker non riuscita', err));

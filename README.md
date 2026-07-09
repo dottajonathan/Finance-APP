@@ -123,6 +123,11 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 - La scheda **Backup** ora esporta/importa un file locale invece di collegarsi a Drive
 - Tutto il resto (voce, categorie, dashboard) è invariato
 
+## Novità: onboarding e animazioni
+
+- **Onboarding**: alla primissima apertura (solo se non ci sono ancora movimenti salvati) compare una breve presentazione in 3 schermate, saltabile in ogni momento. Chi aggiorna l'app avendo già dei dati non la vede: è pensata solo per chi parte da zero.
+- **Animazioni**: le barre di budget si riempiono invece di apparire già piene, i movimenti compaiono con un leggero effetto di ingresso, e lo stato "nessun movimento" è ora più curato e invita ad aggiungere il primo. Tutte le animazioni rispettano l'impostazione di sistema "riduci movimento", se attiva sul telefono.
+
 ## Novità: tema scuro, ricerca, categorie personalizzate
 
 - **Tema scuro**: pulsante sole/luna nell'header, in alto a destra. Ricorda la scelta; se non ne fai una, segue l'impostazione del telefono.
