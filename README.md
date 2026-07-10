@@ -131,7 +131,7 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 
 ## Novità: onboarding e animazioni
 
-- **Onboarding**: alla primissima apertura (solo se non ci sono ancora movimenti salvati) compare una breve presentazione in 3 schermate, saltabile in ogni momento. Chi aggiorna l'app avendo già dei dati non la vede: è pensata solo per chi parte da zero.
+- **Onboarding**: alla primissima apertura (solo se non ci sono ancora movimenti salvati) compare una breve presentazione in 3 schermate, saltabile in ogni momento. Chi aggiorna l'app avendo già dei dati non la vede: è pensata solo per chi parte da zero. Si può rivedere in qualsiasi momento dalla scheda Backup, pulsante "Rivedi il tour introduttivo".
 - **Animazioni**: le barre di budget si riempiono invece di apparire già piene, i movimenti compaiono con un leggero effetto di ingresso, e lo stato "nessun movimento" è ora più curato e invita ad aggiungere il primo. Tutte le animazioni rispettano l'impostazione di sistema "riduci movimento", se attiva sul telefono.
 
 ## Novità: tema scuro, ricerca, categorie personalizzate

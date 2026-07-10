@@ -996,6 +996,10 @@ function renderBackupTab() {
       <div class="card">
         <p class="hint">Il file esportato contiene i tuoi dati in chiaro (JSON): trattalo come un documento personale, ad esempio evitando di condividerlo pubblicamente.</p>
       </div>
+      <div class="card center">
+        <p class="hint" style="margin-top:0;">Vuoi rivedere la presentazione iniziale dell'app?</p>
+        <button type="button" data-action="replay-onboarding" class="btn-secondary">Rivedi il tour introduttivo</button>
+      </div>
     </div>
   `;
 }
@@ -1058,6 +1062,11 @@ function onboardingBack() {
 function finishOnboarding() {
   state.showOnboarding = false;
   try { localStorage.setItem(STORAGE_KEYS.ONBOARDED, '1'); } catch (e) { /* non bloccante */ }
+  renderOnboardingOverlay();
+}
+function replayOnboarding() {
+  state.onboardingStep = 0;
+  state.showOnboarding = true;
   renderOnboardingOverlay();
 }
 
@@ -1566,6 +1575,7 @@ function attachGlobalHandlers() {
 
     if (e.target.closest('[data-action="export-backup"]')) { exportBackup(); return; }
     if (e.target.closest('[data-action="trigger-import"]')) { triggerImport(); return; }
+    if (e.target.closest('[data-action="replay-onboarding"]')) { replayOnboarding(); return; }
 
     const recSegna = e.target.closest('[data-action="recurring-segna"]');
     if (recSegna) { fillFormFromRecurring(recSegna.dataset.id); return; }
