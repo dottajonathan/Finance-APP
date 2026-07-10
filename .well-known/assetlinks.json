@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "INSERISCI-IL-PACKAGE-NAME-DA-twa-manifest.json",
+      "sha256_cert_fingerprints": ["00:7D:13:EB:D1:23:31:37:9A:95:30:A7:1E:9B:7C:7A:52:DA:D4:91:8C:99:1D:E2:4D:A7:A1:0B:90:66:3F:52"]
+    }
+  }
+]
