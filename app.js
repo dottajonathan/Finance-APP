@@ -2,7 +2,13 @@
 
 /* ---------- Dati e costanti ---------- */
 
-const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements', STYLES: 'finanze_category_styles', THEME: 'finanze_theme', ONBOARDED: 'finanze_onboarded' };
+const STORAGE_KEYS = { TX: 'finanze_transactions', CAT: 'finanze_categories', BUDGETS: 'finanze_budgets', ACHIEVEMENTS: 'finanze_achievements', STYLES: 'finanze_category_styles', THEME: 'finanze_theme', ONBOARDED: 'finanze_onboarded', RECURRING: 'finanze_recurring', GOALS: 'finanze_goals' };
+
+const THEME_COLORS = {
+  light: { income: '#047857', expense: '#e11d48', muted: '#a8a29e' },
+  dark: { income: '#34d399', expense: '#fb7185', muted: '#6b6b70' },
+};
+function tc(key) { return THEME_COLORS[state.theme][key]; }
 
 const DEFAULT_CATEGORIES = {
   expense: {
@@ -133,6 +139,16 @@ let state = {
   theme: 'light',
   showOnboarding: false,
   onboardingStep: 0,
+  recurring: [],
+  activeRecurringFill: null,
+  recurringFormOpen: false,
+  editingRecurringId: null,
+  recurringDraft: { type: 'expense', category: '', subcategory: '', amount: '', day: '1', description: '' },
+  goals: [],
+  goalFormOpen: false,
+  editingGoalId: null,
+  goalDraft: { name: '', targetAmount: '', targetDate: '' },
+  contributingGoalId: null,
 };
 
 function loadState() {
@@ -156,6 +172,14 @@ function loadState() {
     const st = localStorage.getItem(STORAGE_KEYS.STYLES);
     if (st) state.categoryStyles = JSON.parse(st);
   } catch (e) { /* nessuno stile personalizzato */ }
+  try {
+    const rec = localStorage.getItem(STORAGE_KEYS.RECURRING);
+    if (rec) state.recurring = JSON.parse(rec);
+  } catch (e) { /* nessuna ricorrenza salvata */ }
+  try {
+    const goals = localStorage.getItem(STORAGE_KEYS.GOALS);
+    if (goals) state.goals = JSON.parse(goals);
+  } catch (e) { /* nessun obiettivo salvato */ }
   try {
     state.theme = localStorage.getItem(STORAGE_KEYS.THEME) || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   } catch (e) { state.theme = 'light'; }
@@ -182,6 +206,14 @@ function saveCategories() {
 function saveBudgets() {
   try { localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(state.budgets)); }
   catch (e) { console.error('Salvataggio budget non riuscito', e); }
+}
+function saveRecurring() {
+  try { localStorage.setItem(STORAGE_KEYS.RECURRING, JSON.stringify(state.recurring)); }
+  catch (e) { console.error('Salvataggio ricorrenze non riuscito', e); }
+}
+function saveGoals() {
+  try { localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(state.goals)); }
+  catch (e) { console.error('Salvataggio obiettivi non riuscito', e); }
 }
 function saveAchievements() {
   try { localStorage.setItem(STORAGE_KEYS.ACHIEVEMENTS, JSON.stringify(state.unlockedAchievements)); }
@@ -347,6 +379,11 @@ function handleFormSubmit(e) {
   saveTransactions();
   checkBudgetAfterSave(category, state.formType);
   checkAchievements();
+  if (state.activeRecurringFill) {
+    const recItem = state.recurring.find((r) => r.id === state.activeRecurringFill);
+    if (recItem && recItem.type === state.formType && recItem.category === category) markRecurringHandled(state.activeRecurringFill);
+    state.activeRecurringFill = null;
+  }
   state.pendingAmount = '';
   state.pendingDescription = '';
   state.pendingDate = '';
@@ -372,6 +409,7 @@ function cancelEdit() {
   state.pendingAmount = '';
   state.pendingDescription = '';
   state.pendingDate = '';
+  state.activeRecurringFill = null;
   renderApp();
 }
 function deleteTransaction(id) {
@@ -631,6 +669,217 @@ function getDailyTip() {
   return pool[dayOfYear % pool.length];
 }
 
+/* ---------- Andamento nel tempo ---------- */
+
+function computeMonthlyTotals(monthsBack) {
+  const now = new Date();
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: d.toLocaleDateString('it-IT', { month: 'short' }), income: 0, expense: 0 });
+  }
+  state.transactions.forEach((t) => {
+    const d = new Date(`${t.date}T00:00:00`);
+    const slot = months.find((m) => m.year === d.getFullYear() && m.month === d.getMonth());
+    if (slot) { if (t.type === 'income') slot.income += t.amount; else slot.expense += t.amount; }
+  });
+  return months;
+}
+
+function buildTrendBarsSVG(months) {
+  const width = 300, height = 150, bottomPad = 20;
+  const maxVal = Math.max(1, ...months.flatMap((m) => [m.income, m.expense]));
+  const groupGap = 6;
+  const groupWidth = width / months.length;
+  const barWidth = (groupWidth - groupGap) / 2 - 2;
+  const usableHeight = height - bottomPad;
+  const bars = months.map((m, i) => {
+    const groupX = i * groupWidth + 4;
+    const incH = (m.income / maxVal) * usableHeight;
+    const expH = (m.expense / maxVal) * usableHeight;
+    return `
+      <rect x="${groupX}" y="${usableHeight - incH}" width="${barWidth}" height="${Math.max(incH, m.income > 0 ? 2 : 0)}" rx="2" fill="${tc('income')}"><title>${esc(m.label)} \u2014 entrate: ${formatCurrency(m.income)}</title></rect>
+      <rect x="${groupX + barWidth + 3}" y="${usableHeight - expH}" width="${barWidth}" height="${Math.max(expH, m.expense > 0 ? 2 : 0)}" rx="2" fill="${tc('expense')}"><title>${esc(m.label)} \u2014 uscite: ${formatCurrency(m.expense)}</title></rect>
+      <text x="${groupX + groupWidth / 2 - 2}" y="${height - 4}" font-size="9" text-anchor="middle" fill="${tc('muted')}">${esc(m.label)}</text>
+    `;
+  }).join('');
+  return `<svg viewBox="0 0 ${width} ${height}" class="trend-chart">${bars}</svg>`;
+}
+
+/* ---------- Spese e entrate ricorrenti ---------- */
+
+function currentPeriodKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getDueRecurring() {
+  const today = new Date().getDate();
+  const period = currentPeriodKey();
+  return state.recurring.filter((r) => today >= r.day && r.lastHandledPeriod !== period);
+}
+
+function markRecurringHandled(id) {
+  const item = state.recurring.find((r) => r.id === id);
+  if (!item) return;
+  item.lastHandledPeriod = currentPeriodKey();
+  saveRecurring();
+}
+
+function fillFormFromRecurring(id) {
+  const item = state.recurring.find((r) => r.id === id);
+  if (!item) return;
+  state.editingId = null;
+  state.formType = item.type;
+  state.formCategory = item.category;
+  state.formSubcategory = item.subcategory;
+  state.pendingAmount = String(item.amount);
+  state.pendingDescription = item.description || '';
+  state.pendingDate = todayStr();
+  state.activeRecurringFill = item.id;
+  state.tab = 'aggiungi';
+  renderApp();
+}
+
+function dismissRecurring(id) {
+  markRecurringHandled(id);
+  renderApp();
+}
+
+function openRecurringForm(id) {
+  if (id) {
+    const item = state.recurring.find((r) => r.id === id);
+    if (!item) return;
+    state.editingRecurringId = id;
+    state.recurringDraft = { type: item.type, category: item.category, subcategory: item.subcategory, amount: String(item.amount), day: String(item.day), description: item.description || '' };
+  } else {
+    state.editingRecurringId = null;
+    const cat = catKeys('expense')[0] || '';
+    state.recurringDraft = { type: 'expense', category: cat, subcategory: subsOf('expense', cat)[0] || '', amount: '', day: '1', description: '' };
+  }
+  state.recurringFormOpen = true;
+  renderApp();
+}
+function closeRecurringForm() {
+  state.recurringFormOpen = false;
+  state.editingRecurringId = null;
+  renderApp();
+}
+function setRecurringDraftType(type) {
+  const cat = catKeys(type)[0] || '';
+  state.recurringDraft = { ...state.recurringDraft, type, category: cat, subcategory: subsOf(type, cat)[0] || '' };
+  renderApp();
+}
+function syncRecurringDraftFromInputs() {
+  const catEl = document.getElementById('recurring-category');
+  const subEl = document.getElementById('recurring-subcategory');
+  const amountEl = document.getElementById('recurring-amount');
+  const dayEl = document.getElementById('recurring-day');
+  const descEl = document.getElementById('recurring-description');
+  state.recurringDraft = {
+    ...state.recurringDraft,
+    category: catEl ? catEl.value : state.recurringDraft.category,
+    subcategory: subEl ? subEl.value : state.recurringDraft.subcategory,
+    amount: amountEl ? amountEl.value : state.recurringDraft.amount,
+    day: dayEl ? dayEl.value : state.recurringDraft.day,
+    description: descEl ? descEl.value : state.recurringDraft.description,
+  };
+}
+function saveRecurringDraft() {
+  const d = state.recurringDraft;
+  const amount = parseFloat(String(d.amount).replace(',', '.'));
+  const day = Math.min(28, Math.max(1, parseInt(d.day, 10) || 1));
+  if (!amount || amount <= 0 || !d.category || !d.subcategory) return;
+  if (state.editingRecurringId) {
+    const item = state.recurring.find((r) => r.id === state.editingRecurringId);
+    if (item) Object.assign(item, { type: d.type, category: d.category, subcategory: d.subcategory, amount, day, description: d.description });
+  } else {
+    state.recurring.push({ id: generateId(), type: d.type, category: d.category, subcategory: d.subcategory, amount, day, description: d.description, lastHandledPeriod: null });
+  }
+  saveRecurring();
+  closeRecurringForm();
+}
+function deleteRecurringItem(id) {
+  state.recurring = state.recurring.filter((r) => r.id !== id);
+  saveRecurring();
+  renderApp();
+}
+
+/* ---------- Obiettivi di risparmio ---------- */
+
+function openGoalForm(id) {
+  if (id) {
+    const g = state.goals.find((x) => x.id === id);
+    if (!g) return;
+    state.editingGoalId = id;
+    state.goalDraft = { name: g.name, targetAmount: String(g.targetAmount), targetDate: g.targetDate || '' };
+  } else {
+    state.editingGoalId = null;
+    state.goalDraft = { name: '', targetAmount: '', targetDate: '' };
+  }
+  state.goalFormOpen = true;
+  renderApp();
+}
+function closeGoalForm() {
+  state.goalFormOpen = false;
+  state.editingGoalId = null;
+  renderApp();
+}
+function syncGoalDraftFromInputs() {
+  const nameEl = document.getElementById('goal-name');
+  const targetEl = document.getElementById('goal-target');
+  const dateEl = document.getElementById('goal-date');
+  state.goalDraft = {
+    name: nameEl ? nameEl.value : state.goalDraft.name,
+    targetAmount: targetEl ? targetEl.value : state.goalDraft.targetAmount,
+    targetDate: dateEl ? dateEl.value : state.goalDraft.targetDate,
+  };
+}
+function saveGoalDraft() {
+  const d = state.goalDraft;
+  const targetAmount = parseFloat(String(d.targetAmount).replace(',', '.'));
+  const name = d.name.trim();
+  if (!name || !targetAmount || targetAmount <= 0) return;
+  if (state.editingGoalId) {
+    const g = state.goals.find((x) => x.id === state.editingGoalId);
+    if (g) Object.assign(g, { name, targetAmount, targetDate: d.targetDate || '' });
+  } else {
+    state.goals.push({ id: generateId(), name, targetAmount, targetDate: d.targetDate || '', savedAmount: 0 });
+  }
+  saveGoals();
+  closeGoalForm();
+}
+function deleteGoal(id) {
+  state.goals = state.goals.filter((g) => g.id !== id);
+  saveGoals();
+  renderApp();
+}
+function openContribute(id) {
+  state.contributingGoalId = id;
+  renderApp();
+}
+function closeContribute() {
+  state.contributingGoalId = null;
+  renderApp();
+}
+function confirmContribution(id) {
+  const input = document.getElementById(`contribute-input-${id}`);
+  if (!input) return;
+  const amount = parseFloat(String(input.value).replace(',', '.'));
+  if (!amount || amount <= 0) return;
+  const g = state.goals.find((x) => x.id === id);
+  if (g) { g.savedAmount = Math.max(0, (g.savedAmount || 0) + amount); saveGoals(); }
+  state.contributingGoalId = null;
+  renderApp();
+}
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr}T00:00:00`);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target - today) / 86400000);
+}
+
 /* ---------- Grafico a torta SVG (senza librerie) ---------- */
 
 function polarToCartesian(cx, cy, r, angleDeg) {
@@ -837,9 +1086,28 @@ function renderAggiungiTab() {
   const descVal = state.pendingDescription || '';
   const dateVal = state.pendingDate || todayStr();
   const nudge = getNudge();
+  const dueRecurring = getDueRecurring().filter((r) => r.id !== state.activeRecurringFill);
 
   return `
     <div class="stack max-w">
+      ${dueRecurring.length > 0 ? `
+        <div class="card recurring-due-card">
+          <div class="card-title" style="margin-bottom:10px;">Ricorrenze di questo mese</div>
+          <div class="stack-sm">
+            ${dueRecurring.map((r) => `
+              <div class="recurring-due-row">
+                <div class="tx-icon ${r.type === 'income' ? 'bg-income' : 'bg-expense'}">${categoryIcon(r.type, r.category)}</div>
+                <div class="tx-info">
+                  <div class="tx-desc">${esc(r.description || r.subcategory)}</div>
+                  <div class="tx-meta">${esc(r.category)} · ${formatCurrency(r.amount)}</div>
+                </div>
+                <div class="recurring-due-actions">
+                  <button type="button" class="btn-chip-primary" data-action="recurring-segna" data-id="${r.id}">Segna</button>
+                  <button type="button" class="btn-chip" data-action="recurring-salta" data-id="${r.id}">Salta</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
       ${state.achievementMessage ? `<div class="nudge nudge-ok">${esc(state.achievementMessage)}</div>` : ''}
       ${state.budgetMessage ? `<div class="nudge nudge-warn">${esc(state.budgetMessage)}</div>` : ''}
       ${nudge ? `<div class="nudge nudge-${nudge.tone}">${esc(nudge.text)}</div>` : ''}
@@ -1025,6 +1293,14 @@ function renderRiepilogoTab() {
           </div>
         </div>` : ''}
       <div class="card">
+        <div class="card-title">Andamento ultimi 6 mesi</div>
+        <div class="trend-wrap">${buildTrendBarsSVG(computeMonthlyTotals(6))}</div>
+        <div class="trend-legend">
+          <span class="legend-row"><span class="legend-dot" style="background:${tc('income')}"></span>Entrate</span>
+          <span class="legend-row"><span class="legend-dot" style="background:${tc('expense')}"></span>Uscite</span>
+        </div>
+      </div>
+      <div class="card">
         <div class="card-title">Uscite per categoria</div>
         ${chartData.length === 0 ? '<p class="empty">Nessuna uscita nel periodo selezionato.</p>' : `
           <div class="pie-wrap">${buildPieSVG(chartData)}</div>
@@ -1051,6 +1327,54 @@ function renderRiepilogoTab() {
               <div class="badge-desc">${esc(a.desc)}</div>
             </div>`).join('')}
         </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Obiettivi di risparmio</div>
+        ${state.goals.length === 0 ? '<p class="hint" style="margin:0 0 12px;">Nessun obiettivo ancora: crea il primo qui sotto.</p>' : `
+          <div class="stack-sm" style="margin-bottom:14px;">
+            ${state.goals.map((g) => {
+              const pct = Math.min(100, Math.round((g.savedAmount / g.targetAmount) * 100));
+              const done = g.savedAmount >= g.targetAmount;
+              const days = daysUntil(g.targetDate);
+              return `
+                <div class="goal-card ${done ? 'goal-done' : ''}">
+                  <div class="row-between">
+                    <span class="label-strong" style="color:var(--text);font-weight:600;">${esc(g.name)}</span>
+                    <div class="tx-actions">
+                      <button type="button" data-action="edit-goal" data-id="${g.id}" aria-label="Modifica">${ICONS.pencil}</button>
+                      <button type="button" data-action="delete-goal" data-id="${g.id}" aria-label="Elimina">${ICONS.trash}</button>
+                    </div>
+                  </div>
+                  <div class="row-between" style="margin:6px 0 4px;">
+                    <span class="mono" style="font-size:13px;">${formatCurrency(g.savedAmount)} / ${formatCurrency(g.targetAmount)}</span>
+                    <span style="font-size:12px;color:var(--text-faint);">${done ? 'Obiettivo raggiunto \ud83c\udf89' : (days !== null ? (days >= 0 ? `mancano ${days} giorni` : 'scaduto') : '')}</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill ${done ? 'ok' : 'near'}" style="width:0%;" data-target-width="${pct}"></div>
+                  </div>
+                  ${!done ? (state.contributingGoalId === g.id ? `
+                    <div class="contribute-row">
+                      <input type="number" min="0" step="0.01" id="contribute-input-${g.id}" class="mono" placeholder="Importo">
+                      <button type="button" class="btn-chip-primary" data-action="confirm-contribute" data-id="${g.id}">Aggiungi</button>
+                      <button type="button" class="btn-chip" data-action="cancel-contribute">Annulla</button>
+                    </div>` : `
+                    <button type="button" class="link-btn" data-action="open-contribute" data-id="${g.id}" style="margin-top:8px;">${ICONS.plus} Aggiungi risparmio</button>`) : ''}
+                </div>`;
+            }).join('')}
+          </div>`}
+        ${state.goalFormOpen ? `
+          <form id="goal-form" class="style-editor">
+            <div class="field"><label>Nome obiettivo</label><input type="text" id="goal-name" placeholder="Es. Vacanza al mare" value="${esc(state.goalDraft.name)}" required></div>
+            <div class="grid-2" style="margin-top:10px;">
+              <div class="field"><label>Importo target (€)</label><input type="number" min="0.01" step="1" id="goal-target" class="mono" value="${esc(state.goalDraft.targetAmount)}" required></div>
+              <div class="field"><label>Scadenza (opzionale)</label><input type="date" id="goal-date" value="${esc(state.goalDraft.targetDate)}"></div>
+            </div>
+            <div class="row-between" style="margin-top:14px;">
+              <button type="button" class="link-btn" data-action="close-goal-form">${ICONS.x} Annulla</button>
+              <button type="submit" class="btn-chip-primary">${state.editingGoalId ? 'Salva modifiche' : 'Crea obiettivo'}</button>
+            </div>
+          </form>` : `
+          <button type="button" class="chip-add" data-action="open-goal-form" style="margin-top:4px;">+ Nuovo obiettivo</button>`}
       </div>
     </div>
   `;
@@ -1108,7 +1432,59 @@ function renderCategorieTab() {
       </div>
     </div>
   `;
-  return `<div class="stack max-w">${section('expense')}${section('income')}</div>`;
+  return `<div class="stack max-w">${section('expense')}${section('income')}${renderRecurringManageSection()}</div>`;
+}
+
+function renderRecurringManageSection() {
+  const d = state.recurringDraft;
+  const cats = catKeys(d.type);
+  const subs = subsOf(d.type, d.category);
+  return `
+    <div>
+      <h2 class="section-title">Spese ed entrate ricorrenti</h2>
+      ${state.recurring.length === 0 ? '<p class="hint" style="margin:0 0 10px;">Nessuna ricorrenza impostata: affitto, bollette, abbonamenti, stipendio...</p>' : `
+        <div class="stack-sm" style="margin-bottom:10px;">
+          ${state.recurring.map((r) => `
+            <div class="cat-card">
+              <div class="row-between">
+                <div class="cat-name">${categoryIcon(r.type, r.category)}${esc(r.description || r.subcategory)}</div>
+                <div class="tx-actions">
+                  <button type="button" data-action="edit-recurring" data-id="${r.id}" aria-label="Modifica">${ICONS.pencil}</button>
+                  <button type="button" data-action="delete-recurring" data-id="${r.id}" aria-label="Elimina">${ICONS.trash}</button>
+                </div>
+              </div>
+              <div class="hint" style="margin-top:4px;">${esc(r.category)} · ${formatCurrency(r.amount)} · ogni mese il giorno ${r.day}</div>
+            </div>`).join('')}
+        </div>`}
+      ${state.recurringFormOpen ? `
+        <form id="recurring-form" class="style-editor">
+          <div class="type-toggle">
+            <button type="button" class="type-btn expense ${d.type === 'expense' ? 'active' : ''}" data-action="recurring-type" data-type="expense">Uscita</button>
+            <button type="button" class="type-btn income ${d.type === 'income' ? 'active' : ''}" data-action="recurring-type" data-type="income">Entrata</button>
+          </div>
+          <div class="grid-2" style="margin-top:10px;">
+            <div class="field">
+              <label>Categoria</label>
+              <select id="recurring-category">${cats.map((c) => `<option value="${esc(c)}" ${c === d.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+            </div>
+            <div class="field">
+              <label>Sottocategoria</label>
+              <select id="recurring-subcategory">${subs.map((s) => `<option value="${esc(s)}" ${s === d.subcategory ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>
+            </div>
+          </div>
+          <div class="grid-2" style="margin-top:10px;">
+            <div class="field"><label>Importo (€)</label><input type="number" min="0.01" step="0.01" id="recurring-amount" class="mono" value="${esc(d.amount)}" required></div>
+            <div class="field"><label>Giorno del mese</label><input type="number" min="1" max="28" id="recurring-day" value="${esc(d.day)}" required></div>
+          </div>
+          <div class="field" style="margin-top:10px;"><label>Descrizione</label><input type="text" id="recurring-description" placeholder="Es. Affitto" value="${esc(d.description)}"></div>
+          <div class="row-between" style="margin-top:14px;">
+            <button type="button" class="link-btn" data-action="close-recurring-form">${ICONS.x} Annulla</button>
+            <button type="submit" class="btn-chip-primary">${state.editingRecurringId ? 'Salva modifiche' : 'Crea ricorrenza'}</button>
+          </div>
+        </form>` : `
+        <button type="button" class="chip-add" data-action="open-recurring-form">+ Nuova ricorrenza</button>`}
+    </div>
+  `;
 }
 
 function animateProgressBars() {
@@ -1190,6 +1566,31 @@ function attachGlobalHandlers() {
 
     if (e.target.closest('[data-action="export-backup"]')) { exportBackup(); return; }
     if (e.target.closest('[data-action="trigger-import"]')) { triggerImport(); return; }
+
+    const recSegna = e.target.closest('[data-action="recurring-segna"]');
+    if (recSegna) { fillFormFromRecurring(recSegna.dataset.id); return; }
+    const recSalta = e.target.closest('[data-action="recurring-salta"]');
+    if (recSalta) { dismissRecurring(recSalta.dataset.id); return; }
+    if (e.target.closest('[data-action="open-recurring-form"]')) { openRecurringForm(null); return; }
+    if (e.target.closest('[data-action="close-recurring-form"]')) { closeRecurringForm(); return; }
+    const recType = e.target.closest('[data-action="recurring-type"]');
+    if (recType) { setRecurringDraftType(recType.dataset.type); return; }
+    const editRec = e.target.closest('[data-action="edit-recurring"]');
+    if (editRec) { openRecurringForm(editRec.dataset.id); return; }
+    const delRec = e.target.closest('[data-action="delete-recurring"]');
+    if (delRec) { deleteRecurringItem(delRec.dataset.id); return; }
+
+    if (e.target.closest('[data-action="open-goal-form"]')) { openGoalForm(null); return; }
+    if (e.target.closest('[data-action="close-goal-form"]')) { closeGoalForm(); return; }
+    const editGoal = e.target.closest('[data-action="edit-goal"]');
+    if (editGoal) { openGoalForm(editGoal.dataset.id); return; }
+    const delGoal = e.target.closest('[data-action="delete-goal"]');
+    if (delGoal) { deleteGoal(delGoal.dataset.id); return; }
+    const openContrib = e.target.closest('[data-action="open-contribute"]');
+    if (openContrib) { openContribute(openContrib.dataset.id); return; }
+    if (e.target.closest('[data-action="cancel-contribute"]')) { closeContribute(); return; }
+    const confirmContrib = e.target.closest('[data-action="confirm-contribute"]');
+    if (confirmContrib) { confirmContribution(confirmContrib.dataset.id); return; }
   });
 
   main.addEventListener('change', (e) => {
@@ -1199,6 +1600,12 @@ function attachGlobalHandlers() {
     else if (e.target.id === 'filter-category') { state.filterCategory = e.target.value; renderApp(); }
     else if (e.target.id === 'import-file-input') { handleImportFile(e); }
     else if (e.target.classList.contains('budget-input')) { setBudget(e.target.dataset.cat, e.target.value); }
+    else if (e.target.id === 'recurring-category') {
+      syncRecurringDraftFromInputs();
+      state.recurringDraft.subcategory = subsOf(state.recurringDraft.type, state.recurringDraft.category)[0] || '';
+      renderApp();
+    }
+    else if (e.target.id === 'recurring-subcategory') { state.recurringDraft.subcategory = e.target.value; }
     else if (e.target.classList.contains('color-input')) {
       const { cat, type } = e.target.dataset;
       const key = `${type}:${cat}`;
@@ -1210,6 +1617,8 @@ function attachGlobalHandlers() {
 
   main.addEventListener('submit', (e) => {
     if (e.target.id === 'tx-form') handleFormSubmit(e);
+    else if (e.target.id === 'goal-form') { e.preventDefault(); syncGoalDraftFromInputs(); saveGoalDraft(); }
+    else if (e.target.id === 'recurring-form') { e.preventDefault(); syncRecurringDraftFromInputs(); saveRecurringDraft(); }
   });
 
   main.addEventListener('keydown', (e) => {
@@ -1218,6 +1627,10 @@ function attachGlobalHandlers() {
     else if (e.target.id && e.target.id.startsWith('new-cat-input-')) {
       e.preventDefault();
       addCategory(e.target.id.replace('new-cat-input-', ''));
+    }
+    else if (e.target.id && e.target.id.startsWith('contribute-input-')) {
+      e.preventDefault();
+      confirmContribution(e.target.id.replace('contribute-input-', ''));
     }
   });
 

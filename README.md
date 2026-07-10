@@ -123,6 +123,12 @@ Se un passaggio dà un errore diverso da quanto descritto qui, copia il messaggi
 - La scheda **Backup** ora esporta/importa un file locale invece di collegarsi a Drive
 - Tutto il resto (voce, categorie, dashboard) è invariato
 
+## Novità: andamento nel tempo, ricorrenze, obiettivi di risparmio
+
+- **Andamento ultimi 6 mesi**: scheda Riepilogo, sotto i budget — un grafico a barre che confronta entrate e uscite mese per mese, per vedere se la tendenza generale migliora nel tempo.
+- **Spese ed entrate ricorrenti**: scheda Categorie, in fondo — imposta affitto, bollette, abbonamenti, stipendio con importo e giorno del mese. Quando è il momento, un promemoria compare in cima alla scheda Aggiungi con due tocchi: "Segna" (precompila il form da confermare) o "Salta" (rimanda al mese prossimo senza registrare nulla). L'importo non viene mai inserito automaticamente senza controllo: resta sempre una conferma attiva, non un'azione silenziosa dell'app.
+- **Obiettivi di risparmio**: scheda Riepilogo, in fondo — diversi dai budget (che limitano la spesa), sono traguardi da raggiungere: un nome, un importo target, una scadenza opzionale. Si alimentano con contributi manuali ("+ Aggiungi risparmio"), non vengono dedotti automaticamente dal saldo.
+
 ## Novità: onboarding e animazioni
 
 - **Onboarding**: alla primissima apertura (solo se non ci sono ancora movimenti salvati) compare una breve presentazione in 3 schermate, saltabile in ogni momento. Chi aggiorna l'app avendo già dei dati non la vede: è pensata solo per chi parte da zero.
